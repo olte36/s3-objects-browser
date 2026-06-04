@@ -70,3 +70,39 @@ func TestBuildObjectTreeObjectPrefixCollision(t *testing.T) {
 		t.Fatalf("unexpected dir children: %#v", got)
 	}
 }
+
+// TestBuildObjectTreeObjectPrefixCollisionIsOrderIndependent verifies nested keys keep prefixes navigable.
+func TestBuildObjectTreeObjectPrefixCollisionIsOrderIndependent(t *testing.T) {
+	root := buildObjectTree([]objectItem{{Key: "dir/file.txt", Size: 2}, {Key: "dir", Size: 1}})
+	dir := root.Children["dir"]
+	if dir == nil {
+		t.Fatal("dir node not created")
+	}
+	if dir.Kind != nodeFolder {
+		t.Fatalf("dir kind = %v, want folder", dir.Kind)
+	}
+	if got := listChildren(dir); len(got) != 1 || got[0].Label != "file.txt" {
+		t.Fatalf("unexpected dir children: %#v", got)
+	}
+}
+
+// TestListChildrenSortsFoldersBeforeObjectsCaseInsensitively verifies stable navigation ordering.
+func TestListChildrenSortsFoldersBeforeObjectsCaseInsensitively(t *testing.T) {
+	root := buildObjectTree([]objectItem{
+		{Key: "zeta.txt"},
+		{Key: "Beta/file.txt"},
+		{Key: "alpha.txt"},
+		{Key: "Archive/file.txt"},
+	})
+
+	entries := listChildren(root)
+	want := []string{"Archive/", "Beta/", "alpha.txt", "zeta.txt"}
+	if len(entries) != len(want) {
+		t.Fatalf("got %d entries, want %d", len(entries), len(want))
+	}
+	for i := range want {
+		if entries[i].Label != want[i] {
+			t.Fatalf("entry %d = %q, want %q", i, entries[i].Label, want[i])
+		}
+	}
+}

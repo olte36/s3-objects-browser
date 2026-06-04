@@ -518,6 +518,72 @@ func TestDetailCopyKeysReturnCopyCommands(t *testing.T) {
 	}
 }
 
+// TestNavigationHelpers verifies URI and prefix helpers normalize display values.
+func TestNavigationHelpers(t *testing.T) {
+	tests := []struct {
+		name       string
+		bucket     string
+		key        string
+		prefix     string
+		wantURI    string
+		wantPrefix string
+	}{
+		{name: "bucket only", bucket: "archive", wantURI: "s3://archive", wantPrefix: ""},
+		{name: "trim key slash", bucket: "archive", key: "/reports/may.csv", prefix: "/reports", wantURI: "s3://archive/reports/may.csv", wantPrefix: "reports/"},
+		{name: "preserve prefix slash", bucket: "archive", key: "reports/", prefix: "reports/", wantURI: "s3://archive/reports/", wantPrefix: "reports/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := s3URI(tt.bucket, tt.key); got != tt.wantURI {
+				t.Fatalf("s3URI(%q, %q) = %q, want %q", tt.bucket, tt.key, got, tt.wantURI)
+			}
+			if got := normalizePrefix(tt.prefix); got != tt.wantPrefix {
+				t.Fatalf("normalizePrefix(%q) = %q, want %q", tt.prefix, got, tt.wantPrefix)
+			}
+		})
+	}
+}
+
+// TestMetadataTextSortsKeys verifies clipboard metadata text is deterministic.
+func TestMetadataTextSortsKeys(t *testing.T) {
+	got := metadataText(map[string]string{
+		"z-owner": "ops",
+		"a-type":  "csv",
+	})
+	want := "a-type: csv\nz-owner: ops"
+	if got != want {
+		t.Fatalf("metadataText() = %q, want %q", got, want)
+	}
+}
+
+// TestClampListScrollKeepsCursorVisible verifies list scrolling follows cursor movement.
+func TestClampListScrollKeepsCursorVisible(t *testing.T) {
+	tests := []struct {
+		name    string
+		scroll  int
+		cursor  int
+		count   int
+		visible int
+		want    int
+	}{
+		{name: "empty", scroll: 3, cursor: 0, count: 0, visible: 5, want: 0},
+		{name: "cursor above", scroll: 5, cursor: 2, count: 20, visible: 5, want: 2},
+		{name: "cursor below", scroll: 0, cursor: 7, count: 20, visible: 5, want: 3},
+		{name: "clamp max", scroll: 99, cursor: 19, count: 20, visible: 5, want: 15},
+		{name: "visible default", scroll: 0, cursor: 3, count: 5, visible: 0, want: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := clampListScroll(tt.scroll, tt.cursor, tt.count, tt.visible)
+			if got != tt.want {
+				t.Fatalf("clampListScroll(%d, %d, %d, %d) = %d, want %d", tt.scroll, tt.cursor, tt.count, tt.visible, got, tt.want)
+			}
+		})
+	}
+}
+
 // ListBuckets returns configured buckets or an injected error.
 func (f fakeService) ListBuckets(context.Context) ([]bucketItem, error) {
 	return f.buckets, f.err

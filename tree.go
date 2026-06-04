@@ -68,6 +68,10 @@ func buildObjectTree(objects []objectItem) *treeNode {
 				child.Children = map[string]*treeNode{}
 				child.Path = joinKey(current.Path, part, true)
 			}
+			if isLeaf && child.Kind == nodeFolder && len(child.Children) > 0 {
+				current = child
+				continue
+			}
 			if isLeaf {
 				obj := objects[i]
 				child.Kind = nodeObject
