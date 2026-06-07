@@ -1,0 +1,49 @@
+name: AWS S3 Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  aws-integration:
+    name: AWS S3 integration test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+      S3BROWSER_AWS_BUCKET: ${{ vars.S3BROWSER_AWS_BUCKET || secrets.S3BROWSER_AWS_BUCKET }}
+      S3BROWSER_AWS_KEY: ${{ vars.S3BROWSER_AWS_KEY || secrets.S3BROWSER_AWS_KEY }}
+
+    steps:
+      - name: Check configuration
+        run: |
+          test -n "$AWS_REGION"
+          test -n "$AWS_ROLE_ARN"
+          test -n "$S3BROWSER_AWS_BUCKET"
+          test -n "$S3BROWSER_AWS_KEY"
+
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+
+      - name: Run AWS integration test
+        run: make integration-test
